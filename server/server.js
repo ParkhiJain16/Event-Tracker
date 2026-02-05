@@ -30,6 +30,7 @@ app.use(
     credentials: true
   })
 );
+console.log("✅ CORS middleware loaded");
 
 app.use(express.json());
 
