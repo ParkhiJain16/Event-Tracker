@@ -53,14 +53,14 @@ Static site build using Vite
 Calls backend via public API URL
 
 # ✅ Features Checklist
-Automated event scraping
-Scheduled updates using cron
-MongoDB storage with status tracking
-Clean event listing UI
-Ticket redirect with email capture
-Google OAuth authentication
-Admin dashboard with filters & preview
-Cloud deployment (Render + Netlify)
+- Automated event scraping
+- Scheduled updates using cron
+- MongoDB storage with status tracking
+- Clean event listing UI
+- Ticket redirect with email capture
+- Google OAuth authentication
+- Admin dashboard with filters & preview
+- Cloud deployment (Render + Netlify)
 
 # Author:- 
 Parkhi Jain
