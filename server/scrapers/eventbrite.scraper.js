@@ -5,95 +5,48 @@ const Event = require("../models/Event");
 const EVENTBRITE_URL =
   "https://www.eventbrite.com/d/australia--sydney/events/";
 
-/**
- * Check if event has changed
- */
-function hasEventChanged(existing, incoming) {
-  return existing.title !== incoming.title;
-}
-
 async function scrapeEventbrite() {
   console.log("Scraping Eventbrite...");
 
-  const { data } = await axios.get(EVENTBRITE_URL, {
-    headers: {
-      "User-Agent": "Mozilla/5.0"
-    }
-  });
-
+  const { data } = await axios.get(EVENTBRITE_URL);
   const $ = cheerio.load(data);
-  const scrapedEvents = [];
 
-  /**
-   * UPDATED SELECTOR (IMPORTANT)
-   * Eventbrite no longer uses .event-card
-   */
-  $('a[href*="/e/"]').each((i, el) => {
-    const title = $(el).text().trim();
-    const href = $(el).attr("href");
+  const events = [];
 
-    if (!title || !href) return;
+  $(".event-card").each((i, el) => {
+    const title = $(el).find("h3").text().trim();
+    const url = $(el).find("a").attr("href");
+    const imageUrl = $(el).find("img").attr("src");
 
-    const url = href.startsWith("http")
-      ? href
-      : `https://www.eventbrite.com${href}`;
+    if (!title || !url) return;
 
-    scrapedEvents.push({
+    events.push({
       title,
+      city: "Sydney", // ✅ FIXED (NO TYPO)
+      imageUrl,
       source: {
         name: "Eventbrite",
         url
       },
+      status: "new",
       lastScrapedAt: new Date()
     });
   });
 
-  console.log("Scraped events count:", scrapedEvents.length);
+  for (const e of events) {
+    const existing = await Event.findOne({ "source.url": e.source.url });
 
-  // INSERT / UPDATE LOGIC
-  for (const e of scrapedEvents) {
-    const existingEvent = await Event.findOne({
-      "source.url": e.source.url
-    });
-
-    // NEW EVENT
-    if (!existingEvent) {
-      await Event.create({
-        ...e,
-        status: "new"
-      });
+    if (!existing) {
+      await Event.create(e);
       console.log("New event:", e.title);
-    }
-
-    // UPDATED EVENT
-    else if (hasEventChanged(existingEvent, e)) {
-      existingEvent.title = e.title;
-      existingEvent.status = "updated";
-      existingEvent.lastScrapedAt = new Date();
-      await existingEvent.save();
-      console.log("Updated event:", e.title);
-    }
-
-    // UNCHANGED EVENT
-    else {
-      existingEvent.lastScrapedAt = new Date();
-      await existingEvent.save();
+    } else {
+      await Event.findByIdAndUpdate(existing._id, {
+        lastScrapedAt: new Date(),
+        status: existing.status === "imported" ? "imported" : "updated"
+      });
     }
   }
 
-  // MARK INACTIVE EVENTS
-  const cutoff = new Date();
-  cutoff.setHours(cutoff.getHours() - 24);
-
-  await Event.updateMany(
-    {
-      lastScrapedAt: { $lt: cutoff },
-      status: { $ne: "inactive" }
-    },
-    { $set: { status: "inactive" } }
-  );
-
-  console.log("Inactive events marked");
   console.log("Scraping complete");
 }
 
