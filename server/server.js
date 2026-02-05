@@ -1,42 +1,39 @@
-require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const session = require("express-session");
-
 const startScrapingJob = require("./cron/scrape.job");
 const eventRoutes = require("./routes/events.routes");
-const leadRoutes = require("./routes/leads.routes");
-const authRoutes = require("./routes/auth.routes");
-const passport = require("./auth/passport");
+require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const port = process.env.PORT || 5000;
 
-// ✅ FIXED CORS CONFIG (IMPORTANT)
+// ✅ ALLOWED ORIGINS
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://eventtracker2026.netlify.app"
+];
+
+// ✅ PROPER CORS CONFIG
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      // allow requests with no origin (Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true
   })
 );
 
 app.use(express.json());
 
-// Sessions (required for OAuth)
-app.use(
-  session({
-    secret: "secret",
-    resave: false,
-    saveUninitialized: false
-  })
-);
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-// MongoDB
+// DB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -51,10 +48,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/events", eventRoutes);
-app.use("/api/leads", leadRoutes);
-app.use("/auth", authRoutes);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
